@@ -1,0 +1,94 @@
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.time.Instant
+
+import groovy.util.XmlParser
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+def dir
+def tempDir = Files.createTempDirectory("crafter-archive")
+def pluginsDir = Paths.get("plugins").toAbsolutePath().toFile()
+
+def path = project.hasProperty("pluginPath")? project.getProperty("pluginPath") : null
+def pluginId = project.hasProperty("pluginId")? project.getProperty("pluginId") : null
+def pluginName = project.hasProperty("pluginName")? project.getProperty("pluginName") : null
+def pluginVersion = project.hasProperty("pluginVersion")? project.getProperty("pluginVersion") : null
+def crafterEdition = project.hasProperty("crafterEdition")? project.getProperty("crafterEdition") : null
+def buildNumber = project.hasProperty("buildNumber")? project.getProperty("buildNumber") : null
+
+def expectedContent = [
+  "README.md",
+  "resources",
+  ["src", "config"],
+  ["src", "site"],
+  ["src", "static-assets"],
+  ["src", "templates"],
+  ["src", "scripts"]
+]
+
+task verifyPlugin {
+  description "Task to validate the contents of the plugin directory"
+  
+  doLast {
+    if(!path) {
+      throw new IllegalArgumentException("Missing required parameter 'pluginPath'")
+    }
+    dir = Paths.get(path).toAbsolutePath()
+    if(!Files.exists(dir) || !Files.isDirectory(dir)) {
+      throw new IllegalArgumentException("The path does not exist or is not a folder")
+    }
+    def manifest = dir.resolve("plugin.xml")
+    if(!Files.exists(manifest)) {
+      throw new GradleScriptException("Missing required file ${manifest}")
+    }
+    // TODO: Add XML validation
+    Files.newInputStream(manifest).withCloseable { inputStream ->
+      def xml = new XmlParser().parse(inputStream)
+      pluginId = pluginId ?: xml.id.text()
+      pluginName = pluginName ?: xml.name.text()
+      pluginVersion = pluginVersion ?: xml.version.text()
+      crafterEdition = crafterEdition ?: xml['crafter-edition'].text()
+      buildNumber = buildNumber ?: UUID.randomUUID() as String
+    }
+    if(!pluginId || !pluginName || !pluginVersion || !crafterEdition || !buildNumber) {
+      throw new GradleScriptException("Missing required information from manifest file")
+    }
+    expectedContent.each {
+      def file = Paths.get(it in String? it : it.join(File.separator))
+      if(!Files.exists(dir.resolve(file))) {
+        println "Missing file or folder: '$file'"
+      }
+    }
+    copy {
+      from dir
+      into tempDir
+      filter(ReplaceTokens,
+             tokens: [ 
+                PLUGIN_ID: pluginId,
+                PLUGIN_NAME: pluginName, 
+                PLUGIN_VERSION: pluginVersion,
+                CRAFTER_EDITION: crafterEdition,
+                BUILD_DATE: Instant.now() as String,
+                BUILD_NUMBER: buildNumber
+             ])
+    }
+    // Update configuration for packaging after reading the manifest
+    def zip = tasks['packagePlugin']
+    zip.baseName = pluginName
+    zip.version = pluginVersion
+  }
+}
+
+task packagePlugin(type: Zip, dependsOn: verifyPlugin) {
+  description "Task to process and package Crafter Studio plugins"
+  
+  from tempDir
+  destinationDir pluginsDir
+  extension 'car'
+  
+  doLast {
+    delete tempDir
+    println "Complete, plugin written to file '$pluginsDir${File.separator}$pluginName-${pluginVersion}.car'"
+  }
+}
