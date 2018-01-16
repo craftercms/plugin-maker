@@ -1,3 +1,4 @@
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
@@ -5,6 +6,18 @@ import java.time.Instant
 import groovy.util.XmlParser
 
 import org.apache.tools.ant.filters.ReplaceTokens
+// import org.eclipse.egit.github.core.Issue
+// import org.eclipse.egit.github.core.client.GitHubClient
+// import org.eclipse.egit.github.core.service.IssueService
+
+// buildscript {
+//   repositories {
+//       mavenCentral()
+//   }
+//   dependencies {
+//     classpath group: 'org.eclipse.mylyn.github', name: 'org.eclipse.egit.github.core', version: '2.1.5'
+//   }
+// }
 
 def dir
 def tempDir = Files.createTempDirectory("crafter-archive")
@@ -17,30 +30,74 @@ def pluginVersion = project.hasProperty("pluginVersion")? project.getProperty("p
 def crafterEdition = project.hasProperty("crafterEdition")? project.getProperty("crafterEdition") : null
 def buildNumber = project.hasProperty("buildNumber")? project.getProperty("buildNumber") : null
 
-def expectedContent = [
-  "README.md",
-  "resources",
-  ["src", "config"],
-  ["src", "site"],
-  ["src", "static-assets"],
-  ["src", "templates"],
-  ["src", "scripts"]
-]
+def autoPublish = project.hasProperty("autoPublish")? project.getProperty("autoPublish") : null
 
-task verifyPlugin {
-  description "Task to validate the contents of the plugin directory"
+def expectedContent = {
+  [
+    [ type: "file", value: "README.md" ],
+    [ type: "folder", value: "resources" ],
+    [ type: "file", value: ["resources", "thumbnail.png"] ],
+    [ type: "folder", value: ["resources", "screenshots"] ],
+    [ type: "folder", value: ["src", "config", "engine", "plugins", pluginId] ],
+    [ type: "folder", value: ["src", "config", "studio", "plugins", pluginId] ],
+    [ type: "folder", value: ["src", "site", "plugins", pluginId] ],
+    [ type: "folder", value: ["src", "static-assets", "plugins", pluginId] ],
+    [ type: "folder", value: ["src", "templates", "plugins", pluginId] ],
+    [ type: "folder", value: ["src", "scripts", "plugins", pluginId] ]
+  ]
+}
+
+task newPlugin {
+  description "Creates the folder structure for a new plugin"
   
   doLast {
+    if(!pluginName) {
+      throw new IllegalArgumentException("Missing required parameter 'pluginName'")
+    }
+    if(!pluginId) {
+      throw new IllegalArgumentException("Missing required parameter 'pluginId'")
+    }
+    def baseDir = Paths.get("plugins").resolve(pluginName).toAbsolutePath()
+    Files.createDirectories(baseDir)
+    try {
+      expectedContent().each { item ->
+        def value = item.value in String? item.value : item.value.join(File.separator)
+        if(item.type == "file") {
+          Files.createFile(baseDir.resolve(value))
+        } else {
+          Files.createDirectories(baseDir.resolve(value))
+        }
+      }
+      copy {
+        from Paths.get(projectDir as String, "resources", "template", "plugin.xml")
+        into baseDir
+        filter(ReplaceTokens,
+               tokens: [ 
+                  PLUGIN_ID: pluginId,
+                  PLUGIN_NAME: pluginName
+               ])
+      }
+      println "Complete, folder created at $pluginsDir/$pluginName"
+    } catch(FileAlreadyExistsException e) {
+      throw new GradleScriptException("Plugin folder for '$pluginName' already exists", e)
+    }
+  }
+}
+
+task verifyPlugin {
+  description "Validates the contents of a plugin directory"
+  
+  doFirst {
     if(!path) {
       throw new IllegalArgumentException("Missing required parameter 'pluginPath'")
     }
     dir = Paths.get(path).toAbsolutePath()
     if(!Files.exists(dir) || !Files.isDirectory(dir)) {
-      throw new IllegalArgumentException("The path does not exist or is not a folder")
+      throw new IllegalArgumentException("The path does not exist or is not a folder: $dir")
     }
     def manifest = dir.resolve("plugin.xml")
     if(!Files.exists(manifest)) {
-      throw new GradleScriptException("Missing required file ${manifest}")
+      throw new GradleScriptException("Missing required file ${manifest}", null)
     }
     // TODO: Add XML validation
     Files.newInputStream(manifest).withCloseable { inputStream ->
@@ -52,10 +109,13 @@ task verifyPlugin {
       buildNumber = buildNumber ?: UUID.randomUUID() as String
     }
     if(!pluginId || !pluginName || !pluginVersion || !crafterEdition || !buildNumber) {
-      throw new GradleScriptException("Missing required information from manifest file")
+      throw new GradleScriptException("Missing required information from manifest file", null)
     }
-    expectedContent.each {
-      def file = Paths.get(it in String? it : it.join(File.separator))
+  }
+  
+  doLast {
+    expectedContent().each {
+      def file = Paths.get(it.value in String? it.value : it.value.join(File.separator))
       if(!Files.exists(dir.resolve(file))) {
         println "Missing file or folder: '$file'"
       }
@@ -81,7 +141,7 @@ task verifyPlugin {
 }
 
 task packagePlugin(type: Zip, dependsOn: verifyPlugin) {
-  description "Task to process and package Crafter Studio plugins"
+  description "Package a Crafter Studio plugin"
   
   from tempDir
   destinationDir pluginsDir
@@ -90,5 +150,29 @@ task packagePlugin(type: Zip, dependsOn: verifyPlugin) {
   doLast {
     delete tempDir
     println "Complete, plugin written to file '$pluginsDir${File.separator}$pluginName-${pluginVersion}.car'"
+  }
+}
+
+task publishPlugin {
+  description "Publishes a plugin to the Crafter Marketplace"
+  
+  doLast {
+    if(autoPublish) {
+      println project.getProperty("publish.message.auto")
+      // ant.input(message: 'Pelase type your username', addproperty: 'username')
+      // ant.input(message: 'Please type your password', addproperty: 'password')
+      // ant.input(message: 'Please provide the url to download your plugin', addproperty: 'url')
+      // 
+      // def client = new GitHubClient()
+      // client.setCredentials(ant.username, ant.password)
+      // def issueService = new IssueService(client)
+      // def issue = new Issue()
+      // issue.title = project.getProperty("publish.auto.title")
+      // issue.body = project.getProperty("publish.auto.body") + " " + ant.url
+      // issueService.createIssue(project.getProperty("publish.auto.user"), 
+      //                          project.getProperty("publish.auto.repo"), issue);
+    } else {
+      println project.getProperty("publish.message.manual")
+    }
   }
 }
