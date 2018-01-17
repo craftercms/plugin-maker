@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin version="1.0">
+  <id>@PLUGIN_ID@</id>
+
+  <type></type>
+
+  <name>@PLUGIN_NAME@</name>
+  
+  <version>1.0.0</version>
+  
+  <description></description>
+  
+  <tags>
+    <tag></tag>
+  </tags>
+  
+  <website>
+    <name></name>
+    <url></url>
+  </website>
+  
+  <media>
+    <screenshots>
+      <screenshot>
+        <title></title>
+        <description></description>
+        <url></url>
+      </screenshot>
+    </screenshots>
+    <videos>
+      <video>
+        <title />
+        <description />
+        <url />
+      </video>
+    </videos>
+  </media>
+  
+  <organization>
+    <name></name>
+    <url></url>
+  </organization>
+  
+  <developers>
+    <developer>
+      <name></name>
+      <email></email>
+    </developer>
+  </developers>
+  
+  <!-- Placeholders will be replaced during packaging -->
+  <build>
+    <date>@BUILD_DATE@</date>
+    <number>@BUILD_NUMBER@</number>
+  </build>
+  
+  <license>
+    <name></name>
+    <url></url>
+  </license>
+  
+  <price>
+    <paid></paid> <!-- boolean, if not then it's free -->
+    <amount></amount>
+    <currency></currency>
+  </price>
+  
+  <crafter-versions-supported>
+    <range>
+      <min>3.1.0</min>
+      <max>3.1.0</max>
+    </range>
+  </crafter-versions-supported>
+  
+  <crafter-edition></crafter-edition><!-- any, community, or enterprise -->
+</plugin>
