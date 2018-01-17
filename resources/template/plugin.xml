@@ -24,7 +24,6 @@
       <screenshot>
         <title></title>
         <description></description>
-        <!-- Can be http:// or relative URL -->
         <url></url>
       </screenshot>
     </screenshots>
@@ -57,7 +56,6 @@
   
   <license>
     <name></name>
-    <!-- Can be https:// or relative URL -->
     <url></url>
   </license>
   
