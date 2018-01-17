@@ -57,7 +57,7 @@
   
   <license>
     <name></name>
-    <!-- Can be http:// or relative URL -->
+    <!-- Can be https:// or relative URL -->
     <url></url>
   </license>
   
@@ -69,8 +69,8 @@
   
   <crafter-versions-supported>
     <range>
-      <min>4.0.0</min>
-      <max>4.1.0</max>
+      <min>3.1.0</min>
+      <max>3.1.0</max>
     </range>
   </crafter-versions-supported>
   

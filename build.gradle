@@ -159,8 +159,8 @@ task publishPlugin {
   doLast {
     if(autoPublish) {
       println project.getProperty("publish.message.auto")
-      // ant.input(message: 'Pelase type your username', addproperty: 'username')
-      // ant.input(message: 'Please type your password', addproperty: 'password')
+      // ant.input(message: 'Please type your Github username', addproperty: 'username')
+      // ant.input(message: 'Please type your Github password', addproperty: 'password')
       // ant.input(message: 'Please provide the url to download your plugin', addproperty: 'url')
       // 
       // def client = new GitHubClient()
