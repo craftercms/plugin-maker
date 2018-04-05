@@ -108,8 +108,21 @@ task verifyPlugin {
       crafterEdition = crafterEdition ?: xml['crafter-edition'].text()
       buildNumber = buildNumber ?: UUID.randomUUID() as String
     }
-    if(!pluginId || !pluginName || !pluginVersion || !crafterEdition || !buildNumber) {
-      throw new GradleScriptException("Missing required information from manifest file", null)
+    def missingFields = []
+    if(!pluginId) {
+      missingFields << "id"
+    }
+    if(!pluginName) {
+      missingFields << "name"
+    }
+    if(!pluginVersion) {
+      missingFields << "version"
+    }
+    if(!crafterEdition) {
+      missingFields << "crafter-edition"
+    }
+    if(missingFields) {
+      throw new GradleScriptException("Missing required fields from manifest file: ${missingFields.join(', ')}", null)
     }
   }
   
